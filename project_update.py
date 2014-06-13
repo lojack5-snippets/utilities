@@ -12,7 +12,7 @@
 #    this list of conditions and the following disclaimer in the documentation
 #    and/or other materials provided with the distribution.
 #
-#  * Neither the name of the TESDumpStats nor the names of its
+#  * Neither the name of the project_update nor the names of its
 #    contributors may be used to endorse or promote products derived from
 #    this software without specific prior written permission.
 #
@@ -29,7 +29,7 @@
 #  POSSIBILITY OF SUCH DAMAGE.
 # =============================================================================
 
-"""Quick script for updating MSVC 2013 (MSVC-10.0) project and project filter
+"""Quick script for updating MSVC 2013 (MSVC-12.0) project and project filter
    files with all valid source files in the directory it resideds in
    (recursively).  Runs in either Python 2.7, or Python 3.3+.  See the command
    line help for options."""
@@ -47,8 +47,8 @@ import shutil
 # Command line options
 parser = argparse.ArgumentParser(
     description=u'''Script to automatically ensure all source files are
-    included in your MSVC project files.  The scan will select .h, .hpp, .c,
-    .cpp, and .rc files.'''
+    included in your MSVC 2013 project files.  The scan will select .h, .hpp,
+    .c, .cpp, and .rc files.'''
     )
 parser.add_argument('--scan-only', '-s',
                     action='store_true',
@@ -155,7 +155,7 @@ def plural(word, number):
 
 def scan_directory(path, opts):
     '''Scans the given path, building a list of files that need to be included
-       in CBash (valid source files)'''
+       in the project (valid source files)'''
     path = os.path.normcase(os.path.normpath(path))
     print(u'Scanning directory:', path)
     rootSkips = [x.lower() for x in opts.skip_top_dirs]
@@ -192,6 +192,9 @@ def readUTF8(path):
     '''Reads in a file encoded in UTF8, possibly with the BOM'''
     with open(path, 'rb') as ins:
         data = ins.read()
+    # MSVC project/filter files look to be encoded with the BOM.
+    # Also, they created with CRLF line endings so we'll stick with that
+    # to be consistent.
     return data.decode('utf-8-sig')
 
 
@@ -419,6 +422,7 @@ def main():
     if opts.project and os.path.isfile(opts.project):
         projFile = opts.project
     elif os.path.isfile(u'CBash.vcxproj'):
+        # Cheat a little bit for CBash and just search directly for the project
         projFile = u'CBash.vcxproj'
     else:
         candidates = [x for x in os.listdir(cwd)
@@ -426,7 +430,7 @@ def main():
                       and os.path.isfile(x)]
         if len(candidates) != 1:
             print(u'Could not find the project file.  Please specify it with '
-                  u' the --project or -p command line argument.')
+                  u'the --project or -p command line argument.')
             return
         projFile = candidates[0]
 
@@ -436,7 +440,7 @@ def main():
     else:
         filterFile = projFile+u'.filters'
 
-    # Scan the CBash directory for files that should be accounted for
+    # Scan the project directory for files that should be accounted for
     files = scan_directory(getcwd(), opts)
 
     # Read the project file
