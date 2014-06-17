@@ -353,17 +353,20 @@ def write_filter(path, files):
     ## Headers
     for header in files[0]:
         headerFilters.add(os.path.dirname(header))
-    headerFilters.remove(u'')
+    if u'' in headerFilters:
+        headerFilters.remove(u'')
     headerFilters = list(sorted(headerFilters))
     ## Source files
     for source in files[1]:
         sourceFilters.add(os.path.dirname(source))
-    sourceFilters.remove(u'')
+    if u'' in sourceFilters:
+        sourceFilters.remove(u'')
     sourceFilters = list(sorted(sourceFilters))
     ## Resource files
     for rc in files[2]:
         resourceFilters.add(os.path.dirname(rc))
-    resourceFilters.remove(u'')
+    if u'' in resourceFilters:
+        resourceFilters.remove(u'')
     resourceFilters = list(sorted(resourceFilters))
 
     # Write new one
@@ -425,7 +428,7 @@ def main():
         # Cheat a little bit for CBash and just search directly for the project
         projFile = u'CBash.vcxproj'
     else:
-        candidates = [x for x in os.listdir(cwd)
+        candidates = [x for x in os.listdir(getcwd())
                       if x.lower().endswith(u'.vcxproj')
                       and os.path.isfile(x)]
         if len(candidates) != 1:
