@@ -84,6 +84,13 @@ parser.add_argument('--skip-all-dirs',
                     when searching for files recursively.  By default, none are
                     skipped.'''
                     )
+parser.add_argument('--remove-first-dir-name',
+                    action='store_true',
+                    default=False,
+                    help=u'''When adding files to the project filter file, this
+                    option lops off the first directory name from the filter
+                    names.  This is useful for example if all of your source
+                    files are in a single sub-folder, and you don't want.''')
 parser.add_argument('--ignore', '-i',
                     nargs='*',
                     default=[],
@@ -343,7 +350,7 @@ def write_project(path, files):
         out.write(groups)
 
 
-def write_filter(path, files):
+def write_filter(path, files, opts):
     '''Writes the .vcxproj.filters file with the given files'''
     print(u'Writing project filter file:', path)
     # Create list of filters
@@ -355,18 +362,33 @@ def write_filter(path, files):
         headerFilters.add(os.path.dirname(header))
     if u'' in headerFilters:
         headerFilters.remove(u'')
-    headerFilters = list(sorted(headerFilters))
     ## Source files
     for source in files[1]:
         sourceFilters.add(os.path.dirname(source))
     if u'' in sourceFilters:
         sourceFilters.remove(u'')
-    sourceFilters = list(sorted(sourceFilters))
     ## Resource files
     for rc in files[2]:
         resourceFilters.add(os.path.dirname(rc))
     if u'' in resourceFilters:
         resourceFilters.remove(u'')
+
+    # Lop off the first part of the directory name if desired
+    if opts.remove_first_dir_name:
+        temp = set()
+        for filter in headerFilters, sourceFilters, resourceFilters:
+            for name in filter:
+                split = name.split(os.path.sep, 1)
+                if len(split) > 1:
+                    name = split[1]
+                    temp.add(name)
+            filter.clear()
+            filter |= temp
+            temp.clear()
+
+    # Sort the final results
+    headerFilters = list(sorted(headerFilters))
+    sourceFilters = list(sorted(sourceFilters))
     resourceFilters = list(sorted(resourceFilters))
 
     # Write new one
@@ -399,18 +421,23 @@ def write_filter(path, files):
             out.write(u'    <Filter Include="Source Files\\%s">\r\n' % filter)
             out.write(u'    </Filter>\r\n')
         out.write(u'  </ItemGroup>\r\n')
-        write_group(out, files[0], u'Header Files', u'ClInclude')
-        write_group(out, files[2], u'Resource Files', u'ResourceCompile')
-        write_group(out, files[1], u'Source Files', u'ClCompile')
+        write_group(out, files[0], u'Header Files', u'ClInclude', opts)
+        write_group(out, files[2], u'Resource Files', u'ResourceCompile', opts)
+        write_group(out, files[1], u'Source Files', u'ClCompile', opts)
         # Write extra stuff after
         out.write(u'</Project>\r\n')
 
 
-def write_group(out, files, filterBase, itemKind):
+def write_group(out, files, filterBase, itemKind, opts):
     '''Writes an <ItemGroup> for the .filters file'''
     out.write(u'  <ItemGroup>\r\n')
     for file in files:
-        filter = os.path.join(filterBase, os.path.dirname(file)).strip(os.path.sep)
+        filter_file = file
+        if opts.remove_first_dir_name:
+            split = file.split(os.path.sep, 1)
+            if len(split) > 1:
+                filter_file = split[1]
+        filter = os.path.join(filterBase, os.path.dirname(filter_file)).strip(os.path.sep)
         out.write(u'    <%s Include="%s">\r\n' % (itemKind, file))
         out.write(u'      <Filter>%s</Filter>\r\n' % filter)
         out.write(u'    </%s>\r\n' % itemKind)
@@ -507,7 +534,7 @@ def main():
     # Update the files as applicable
     write_project(projFile, files)
     if not opts.no_filter:
-        write_filter(filterFile, files)
+        write_filter(filterFile, files, opts)
 
     for i in range(3):
         proj = set(projectFiles[i])
